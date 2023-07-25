@@ -19,7 +19,7 @@ import re
 import tarfile
 import gzip
 import zipfile
-import cgi
+from typing import Dict
 
 from gmcs import choices
 from gmcs.choices import ChoicesFile
@@ -33,8 +33,9 @@ from collections import defaultdict
 # HTML blocks, used to create web pages
 
 
-def dummy():
-    pass  # let emacs know the indentation is 2 spaces
+def print_replace(s, end="\n"):
+    global curr_doc
+    curr_doc = curr_doc + s + end
 
 
 HTTP_header = 'Content-type: text/html;charset=UTF-8'
@@ -211,7 +212,7 @@ href="http://cslipublications.stanford.edu/lkb.html"><i>Implementing
 Typed Feature Structure Grammars</i></a>.
 
 <hr>
-<a href="matrix.cgi">Back to form</a><br>
+<a href="/matrix">Back to form</a><br>
 <a href="http://www.delph-in.net/matrix/">Back to Matrix main page</a><br>
 <a href="http://www.delph-in.net/lkb">To the LKB page</a>
 '''
@@ -237,7 +238,7 @@ Click on a sentence to view its parse tree and the mrs associated to that parse.
 
 HTML_sentencespostbody = '''
 <hr>
-<a href="matrix.cgi">Back to form</a><br>
+<a href="/matrix">Back to form</a><br>
 <a href="http://www.delph-in.net/matrix/">Back to Matrix main page</a><br>
 <a href="http://www.delph-in.net/lkb">To the LKB page</a>
 '''
@@ -251,13 +252,13 @@ HTML_prebody_ap = '''<body onload="animate(); multi_init_and_focus_all_fields();
 
 HTML_method = 'post'
 
-HTML_preform = '<form action="matrix.cgi" method="' + HTML_method + \
+HTML_preform = '<form action="/matrix" method="' + HTML_method + \
     '" enctype="multipart/form-data" name="choices_form">'
 
 HTML_postform = '</form>'
 
 HTML_uploadpreform = '''
-<form action="matrix.cgi" method="post" enctype="multipart/form-data"
+<form action="/matrix" method="post" enctype="multipart/form-data"
  name="choices_form">
 '''
 
@@ -702,11 +703,13 @@ class MatrixDefFile:
     # Create and print the main matrix page.  The argument is a cookie
     # that determines where to look for the choices file.
     def main_page(self, cookie, vr):
-        print(HTTP_header)
-        print('Set-cookie: session=' + cookie + '\n')
-        print(HTML_pretitle)
-        print('<title>The Matrix</title>')
-        print(HTML_posttitle % ('', '', '', ''))
+        global curr_doc
+        curr_doc = ""
+        # print_replace(HTTP_header)
+        # print_replace('Set-cookie: session=' + cookie + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>The Matrix</title>')
+        print_replace(HTML_posttitle % ('', '', '', ''))
 
         try:
             f = open('datestamp', 'r')
@@ -715,10 +718,10 @@ class MatrixDefFile:
         except:
             datestamp = "[date unknown]"
 
-        print(HTML_mainprebody % (datestamp))
-        print('<div class="indented">')
+        print_replace(HTML_mainprebody % (datestamp))
+        print_replace('<div class="indented">')
 
-        choices_file = 'sessions/' + cookie + '/choices'
+        choices_file = 'web/sessions/' + cookie + '/choices'
 
         choice = []
         try:
@@ -751,13 +754,13 @@ class MatrixDefFile:
                 pat += word[1] + '$'
                 for k in list(vr.errors.keys()):
                     if re.search(pat, k):
-                        anchor = "matrix.cgi?subpage="+cur_sec+"#"+k
+                        anchor = "/matrix?subpage="+cur_sec+"#"+k
                         vr.err(
                             cur_sec, "This section contains one or more errors. \nClicking this error will link to the error on the subpage.", anchor+"_error", False)
                         break
                 for k in list(vr.warnings.keys()):
                     if re.search(pat, k):
-                        anchor = "matrix.cgi?subpage="+cur_sec+"#"+k
+                        anchor = "/matrix?subpage="+cur_sec+"#"+k
                         vr.warn(
                             cur_sec, "This section contains one or more warnings. \nClicking this warning will link to the warning on the subpage.", anchor+"_warning", False)
                         break
@@ -768,17 +771,17 @@ class MatrixDefFile:
             if len(word) == 0:
                 pass
             elif word[0] == 'Section' and (len(word) != 4 or word[3] != '0'):
-                print('<div class="section"><span id="' + word[1] + 'button" ' +
+                print_replace('<div class="section"><span id="' + word[1] + 'button" ' +
                       'onclick="toggle_display(\'' +
                       word[1] + '\',\'' + word[1] + 'button\')"' +
                       '>&#9658;</span> ')
                 if word[1] in vr.errors:
-                    print(html_error_mark(vr.errors[word[1]]))
+                    print_replace(html_error_mark(vr.errors[word[1]]))
                 elif word[1] in vr.warnings:
-                    print(html_warning_mark(vr.warnings[word[1]]))
-                print('<a href="matrix.cgi?subpage=' + word[1] + '">' +
+                    print_replace(html_warning_mark(vr.warnings[word[1]]))
+                print_replace('<a href="/matrix?subpage=' + word[1] + '">' +
                       word[2] + '</a>')
-                print('<div class="values" id="' +
+                print_replace('<div class="values" id="' +
                       word[1] + '" style="display:none">')
                 cur_sec = ''
                 printed_something = False
@@ -790,59 +793,59 @@ class MatrixDefFile:
                             if a == 'section':
                                 cur_sec = v.strip()
                             elif cur_sec == word[1]:
-                                print(self.f(a) + ' = ' + self.f(v) + '<br>')
+                                print_replace(self.f(a) + ' = ' + self.f(v) + '<br>')
                                 printed_something = True
                     except ValueError:
                         if cur_sec == word[1]:
-                            print('(<i>Bad line in choices file: </i>"<tt>' +
+                            print_replace('(<i>Bad line in choices file: </i>"<tt>' +
                                   c + '</tt>")<br>')
                             printed_something = True
                 if not printed_something:
-                    print('&nbsp;')
-                print('</div></div>')
+                    print_replace('&nbsp;')
+                print_replace('</div></div>')
 
-        print(HTML_preform)
+        print_replace(HTML_preform)
 
         tgz_checked = True
         zip_checked = False
 
         # the buttons after the subpages
-        print("<p>")  # TJT 2014-09-18: Converting these radios to new set up
-        print(html_input(vr, 'hidden', 'customize', 'customize', False, '', ''))
-        print(html_input(vr, 'radio', 'delivery', 'tgz', tgz_checked,
+        print_replace("<p>")  # TJT 2014-09-18: Converting these radios to new set up
+        print_replace(html_input(vr, 'hidden', 'customize', 'customize', False, '', ''))
+        print_replace(html_input(vr, 'radio', 'delivery', 'tgz', tgz_checked,
                          'Archive type: ', ' .tar.gz'))
-        print(html_input(vr, 'radio', 'delivery', 'zip', zip_checked,
+        print_replace(html_input(vr, 'radio', 'delivery', 'zip', zip_checked,
                          ' ', ' .zip<br>'))
-        print(html_input(vr, 'submit', 'create_grammar_submit', 'Create Grammar',
+        print_replace(html_input(vr, 'submit', 'create_grammar_submit', 'Create Grammar',
                          False, '', '', '', '', vr.has_errors()))
 
-        print(html_input(vr, 'submit', 'sentences', 'Test by Generation', False,
+        print_replace(html_input(vr, 'submit', 'sentences', 'Test by Generation', False,
                          '', '', '', '', vr.has_errors()))
-        print("</p>")
+        print_replace("</p>")
 
-        print('<hr>\n')
+        print_replace('<hr>\n')
 
         # the button for downloading the choices file
-        print('<p><a href="' + choices_file +
+        print_replace('<p><a href="' + choices_file +
               '">View Choices File</a> ', end=' ')
-        print('(right-click to download)</p>')
-        print(HTML_postform)
+        print_replace('(right-click to download)</p>')
+        print_replace(HTML_postform)
 
         # the FORM for uploading a choices file
-        print(HTML_uploadpreform)
-        print(html_input(vr, 'submit', '', 'Upload Choices File:', False,
+        print_replace(HTML_uploadpreform)
+        print_replace(html_input(vr, 'submit', '', 'Upload Choices File:', False,
                          '<p>', ''))
-        print(html_input(vr, 'file', 'choices', '', False, '', '</p>', ''))
-        print(HTML_uploadpostform)
+        print_replace(html_input(vr, 'file', 'choices', '', False, '', '</p>', ''))
+        print_replace(HTML_uploadpostform)
 
-        print('<hr>\n')
+        print_replace('<hr>\n')
 
         # the list of sample choices files
         if os.path.exists('web/sample-choices'):
-            print('<h3>Sample Grammars:</h3>\n' +
+            print_replace('<h3>Sample Grammars:</h3>\n' +
                   '<p>Click a link below to have the questionnaire ' +
                   'filled out automatically.</p>')
-            print('<p>')
+            print_replace('<p>')
 
             globlist = glob.glob('web/sample-choices/*')
             linklist = {}
@@ -856,13 +859,14 @@ class MatrixDefFile:
                 linklist[lang] = f
 
             for k in sorted(list(linklist.keys()), key=str.lower):
-                print('<a href="matrix.cgi?choices=' + linklist[k] + '">' +
+                print_replace('<a href="/matrix?choices=' + linklist[k] + '">' +
                       k + '</a><br>\n')
 
-            print('</p>')
+            print_replace('</p>')
 
-        print('</div>')
-        print(HTML_postbody)
+        print_replace('</div>')
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Turn a list of lines containing matrix definitions into a string
     # containing HTML.
@@ -871,12 +875,12 @@ class MatrixDefFile:
 
         html = ''
 
-        http_cookie = os.getenv('HTTP_COOKIE')
+        # http_cookie = os.getenv('HTTP_COOKIE')
 
         cookie = {}
-        for c in http_cookie.split(';'):
-            (name, value) = c.split('=', 1)
-            cookie[name.strip()] = value
+        # for c in http_cookie.split(';'):
+        #     (name, value) = c.split('=', 1)
+        #     cookie[name.strip()] = value
 
         i = 0
         while i < len(lines):
@@ -1235,61 +1239,63 @@ class MatrixDefFile:
 
         return html
 
-    def verification(self):
-        # Note, In previous parts of this site the html bits are configured outside of the
-        # function and pipped in as global variables. I don't like this. So i'm confining variables
-        # locally. But I don't want to leave things messy, so I've divided it into sections to keep
-        # things more "clean" looking.
-        ### Setup ###
-        verify_form = cgi.FieldStorage()
-        HTML_google_api = "<script src='https://www.google.com/recaptcha/api.js'></script> \n"
-        HTML_verify_form_prebody = """
-<html>
-  <head>
-    <title>Grammar Matrix: Session Verification Page</title>
-     <script src="https://www.google.com/recaptcha/api.js" async defer></script>
-     <script>
-       function onSubmit(token) {
-         document.getElementById("verify-form").submit();
-       }
-     </script>
-  </head>
-"""
-        HTML_verify_form_body = """
-<body>
-	We were unable to detect a valid session for you. In order to create a new session,<br>
-	please use the verify button below to confirm you are not a bot. Once this is done you will be<br>
-	redirected to the main page where you can begin using the grammar matrix.<br><br>
-</body>
-"""
-        HTML_verify_form_postbody = """
-      <form id='verify-form' action="matrix.cgi" method="POST">
-      <button class="g-recaptcha" data-sitekey="6LfEeisUAAAAAGdbbNlfjxKjkRxcSWhSovyq9oik" data-callback='onSubmit'>Verify</button>
-      <br/>
-    </form>
-</html>
+#     def verification(self):
+#         # Note, In previous parts of this site the html bits are configured outside of the
+#         # function and pipped in as global variables. I don't like this. So i'm confining variables
+#         # locally. But I don't want to leave things messy, so I've divided it into sections to keep
+#         # things more "clean" looking.
+#         ### Setup ###
+#         verify_form = cgi.FieldStorage()
+#         HTML_google_api = "<script src='https://www.google.com/recaptcha/api.js'></script> \n"
+#         HTML_verify_form_prebody = """
+# <html>
+#   <head>
+#     <title>Grammar Matrix: Session Verification Page</title>
+#      <script src="https://www.google.com/recaptcha/api.js" async defer></script>
+#      <script>
+#        function onSubmit(token) {
+#          document.getElementById("verify-form").submit();
+#        }
+#      </script>
+#   </head>
+# """
+#         HTML_verify_form_body = """
+# <body>
+# 	We were unable to detect a valid session for you. In order to create a new session,<br>
+# 	please use the verify button below to confirm you are not a bot. Once this is done you will be<br>
+# 	redirected to the main page where you can begin using the grammar matrix.<br><br>
+# </body>
+# """
+#         HTML_verify_form_postbody = """
+#       <form id='verify-form' action="/matrix" method="POST">
+#       <button class="g-recaptcha" data-sitekey="6LfEeisUAAAAAGdbbNlfjxKjkRxcSWhSovyq9oik" data-callback='onSubmit'>Verify</button>
+#       <br/>
+#     </form>
+# </html>
 
 
-   """
+#    """
 
-        ### Execution ###
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print(HTML_verify_form_prebody)
-        print(HTML_verify_form_body)
-        print(HTML_verify_form_postbody)
-        print(HTML_postbody)
+#         ### Execution ###
+#         print_replace(HTTP_header + '\n')
+#         print_replace(HTML_pretitle)
+#         print_replace(HTML_verify_form_prebody)
+#         print_replace(HTML_verify_form_body)
+#         print_replace(HTML_verify_form_postbody)
+#         print_replace(HTML_postbody)
 
     # Create and print the matrix subpage for the specified section
     # based on the arguments, which are the name of the section and
     # a cookie that determines where to look for the choices file
     def sub_page(self, section, cookie, vr):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
+        global curr_doc
+        curr_doc = ""
+        # print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
         if section == 'lexicon':
-            print("<script type='text/javascript' src='web/draw.js'></script>")
+            print_replace("<script type='text/javascript' src='web/draw.js'></script>")
 
-        choices_file = 'sessions/' + cookie + '/choices'
+        choices_file = 'web/sessions/' + cookie + '/choices'
         choices = ChoicesFile(choices_file)
 
         section_begin = -1
@@ -1316,27 +1322,27 @@ class MatrixDefFile:
         if section_begin != -1:
             if section_end == -1:
                 section_end = i
-            print('<title>' + section_friendly + '</title>')
-            print(HTML_posttitle %
+            print_replace('<title>' + section_friendly + '</title>')
+            print_replace(HTML_posttitle %
                   (js_array4(choices.features()),
                    js_array([c for c in choices.patterns() if not c[2]]),
                    js_array([n for n in choices.numbers()]),
                    js_array([n for n in choices.forms()])))
 
             if section == 'sentential-negation':
-                print(HTML_prebody_sn)
+                print_replace(HTML_prebody_sn)
             elif section == 'adnom-poss':
-                print(HTML_prebody_ap)
+                print_replace(HTML_prebody_ap)
             else:
-                print(HTML_prebody)
+                print_replace(HTML_prebody)
 
-            print('<h2 style="display:inline">' + section_friendly + '</h2>')
+            print_replace('<h2 style="display:inline">' + section_friendly + '</h2>')
             doclink = '<a href="https://github.com/delph-in/docs/wiki/MatrixDoc_' + \
                       self.doclinks[section] + \
                 '" target="matrixdoc">documentation</a>'
-            print('<span class="tt">['+doclink+']</span><br />')
+            print_replace('<span class="tt">['+doclink+']</span><br />')
 
-            print('<div id="navmenu"><br />')
+            print_replace('<div id="navmenu"><br />')
             # pass through the definition file once, augmenting the list of validation
             # results with section names so that we can put red asterisks on the links
             # to the assocated sub-pages on the nav menu.
@@ -1387,42 +1393,42 @@ class MatrixDefFile:
                                 printed = True
                                 break
 
-            print(
+            print_replace(
                 '<a href="." onclick="submit_main()" class="navleft">Main page</a><br />')
-            print('<hr />')
+            print_replace('<hr />')
             for l in sec_links:
-                print('<span style="color:#ff0000;" class="navleft">'+l+'<br />')
+                print_replace('<span style="color:#ff0000;" class="navleft">'+l+'<br />')
 
-            print('<hr />')
-            print('<a href="' + choices_file +
+            print_replace('<hr />')
+            print_replace('<a href="' + choices_file +
                   '" class="navleft" id="choicesLink">Choices file</a><br /><div class="navleft" style="margin-bottom:0;padding-bottom:0">(right-click to download)</div>')
-            print(
+            print_replace(
                 '<a href="#stay" onclick="document.forms[0].submit()" class="navleft">Save &amp; stay</a><br />')
             # TJT 2014-05-28: Not sure why the following doesn't work -- need to do more investigation
             # print '<a href="?subpage=%s" onclick="document.forms[0].submit()" class="navleft">Save &amp; stay</a><br />' % section
-            print(
+            print_replace(
                 '<a href="#clear" onclick="clear_form()" class="navleft">Clear current subpage</a><br />')
 
             # if there are errors, then we print the links in red and
             # unclickable
             if not vr.has_errors() == 0:
-                print('<span class="navleft">Create grammar:')
-                print(html_info_mark(
+                print_replace('<span class="navleft">Create grammar:')
+                print_replace(html_info_mark(
                     ValidationMessage('', 'Resolve validation errors to enable ' +
                                       'grammar customization.', '')))
-                print('</span><br />')
-                print(
+                print_replace('</span><br />')
+                print_replace(
                     '<span class="navleft" style="padding-left:15px">tgz</span>, <span class="navleft">zip</span>')
             else:
-                print('<span class="navleft">Create grammar:</span><br />')
-                print('<a href="#" onclick="nav_customize(\'tgz\')" class="navleft" style="padding-left:15px">tgz</a>, <a href="#customize" onclick="nav_customize(\'zip\')" class="navleft">zip</a>')
-            print('</div>')
+                print_replace('<span class="navleft">Create grammar:</span><br />')
+                print_replace('<a href="#" onclick="nav_customize(\'tgz\')" class="navleft" style="padding-left:15px">tgz</a>, <a href="#customize" onclick="nav_customize(\'zip\')" class="navleft">zip</a>')
+            print_replace('</div>')
 
-            print('<div id="form_holder">')
-            print(HTML_preform)
-            print(html_input(vr, 'hidden', 'section', section, False, '', '\n'))
-            print(html_input(vr, 'hidden', 'subpage', section, False, '', '\n'))
-            print(self.defs_to_html(self.def_lines[section_begin:section_end],
+            print_replace('<div id="form_holder">')
+            print_replace(HTML_preform)
+            print_replace(html_input(vr, 'hidden', 'section', section, False, '', '\n'))
+            print_replace(html_input(vr, 'hidden', 'subpage', section, False, '', '\n'))
+            print_replace(self.defs_to_html(self.def_lines[section_begin:section_end],
                                     choices, vr,
                                     prefix='', vars={}))
 
@@ -1432,17 +1438,20 @@ class MatrixDefFile:
         #    print html_input(vr, 'button', '', 'Clear', False, '', '</p>', '',
         #                     'clear_form()')
 
-        print(HTML_postform)
-        print('</div>')
-        print(HTML_postbody)
+        print_replace(HTML_postform)
+        print_replace('</div>')
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Create and print the "download your matrix here" page for the
     # customized matrix in the directory specified by session_path
 
     def custom_page(self, session_path, grammar_path, arch_type):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Matrix Customized</title>')
+        global curr_doc
+        curr_doc = ""
+        # print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Matrix Customized</title>')
         # we don't want the contents of the archive to be something like
         # sessions/7149/..., so we remove session_path from grammar_path
         grammar_dir = grammar_path.replace(session_path, '').lstrip('/')
@@ -1457,78 +1466,84 @@ class MatrixDefFile:
         else:
             make_zip(grammar_dir)
         os.chdir(cwd)
-        print(HTML_customprebody % (os.path.join(session_path, arch_file)))
-        print(HTML_postbody)
+        print_replace(HTML_customprebody % (os.path.join(session_path, arch_file)))
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Generate and print sample sentences from the customized grammar
     def sentences_page(self, session_path, grammar_dir, session):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Matrix Sample Sentences</title>')
-        print(HTML_posttitle)
+        global curr_doc
+        curr_doc = ""
+        # print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Matrix Sample Sentences</title>')
+        print_replace(HTML_posttitle)
         delphin_dir = os.path.join(os.getcwd(), 'delphin')
         sentences = generate.get_sentences(grammar_dir, delphin_dir, session)
-        print(HTML_sentencesprebody)
+        print_replace(HTML_sentencesprebody)
         for i in range(len(sentences)):
             long = False
-            print("<b>" + sentences[i][0][0][4:]+"</b> " + sentences[i][0][2] +
+            print_replace("<b>" + sentences[i][0][0][4:]+"</b> " + sentences[i][0][2] +
                   ", with predication: " + ", ".join(list(sentences[i][0][1].values())) + "<br>")
             if len(sentences[i][1]) > 0 and sentences[i][1][0] == '#EDGE-ERROR#':
-                print(
+                print_replace(
                     'This grammar combined with this input semantics results in too large of a seach space<br>')
             elif len(sentences[i][1]) > 0 and sentences[i][1][0] == '#NO-SENTENCES#':
-                print('This combination of verb, pattern, and feature specification did not result in any generated sentences with the nouns that the system chose.<br>')
-                print(HTML_preform)
-                print('<input type="hidden" name="verbpred" value="%s">' %
+                print_replace('This combination of verb, pattern, and feature specification did not result in any generated sentences with the nouns that the system chose.<br>')
+                print_replace(HTML_preform)
+                print_replace('<input type="hidden" name="verbpred" value="%s">' %
                       sentences[i][0][1])
-                print('<input type="hidden" name="template" value="%s">' %
+                print_replace('<input type="hidden" name="template" value="%s">' %
                       sentences[i][0][3])
-                print('<input type="hidden" name="grammar" value="%s">' %
+                print_replace('<input type="hidden" name="grammar" value="%s">' %
                       grammar_dir)
-                print(
+                print_replace(
                     '<input type="submit" name="" value="Try this verb and pattern with all possible nouns">')
-                print(HTML_postform)
+                print_replace(HTML_postform)
             else:
                 for j in range(len(sentences[i][1])):
                     if j == 10:
-                        print('<div id="%s_extra" style=display:none;>' % (i+1))
+                        print_replace('<div id="%s_extra" style=display:none;>' % (i+1))
                         long = True
-                    print('<div onclick=toggle_visibility(["%s_%s_parsemrs"])>%s. %s</div>' % (
+                    print_replace('<div onclick=toggle_visibility(["%s_%s_parsemrs"])>%s. %s</div>' % (
                         i+1, j+1, j+1, sentences[i][1][j]))
-                    print('<div id="%s_%s_parsemrs" style=display:none;>' %
+                    print_replace('<div id="%s_%s_parsemrs" style=display:none;>' %
                           (i+1, j+1))
-                    print('&nbsp&nbsp Parse tree:<br>' + sentences[i][2][j])
-                    print('&nbsp&nbsp MRS:<br>' + sentences[i][3][j])
-                    print('</div>')
+                    print_replace('&nbsp&nbsp Parse tree:<br>' + sentences[i][2][j])
+                    print_replace('&nbsp&nbsp MRS:<br>' + sentences[i][3][j])
+                    print_replace('</div>')
                 if int:
-                    print('</div>')
-                    print('<div id="%s_dots" style=display:block;>...</div>' % (i+1))
-                    print('<input type="button" id="%s_show" value="Show Remainder" onclick=toggle_visibility(["%s_extra","%s_dots","%s_show","%s_hide"]) style=display:block;>' % (
+                    print_replace('</div>')
+                    print_replace('<div id="%s_dots" style=display:block;>...</div>' % (i+1))
+                    print_replace('<input type="button" id="%s_show" value="Show Remainder" onclick=toggle_visibility(["%s_extra","%s_dots","%s_show","%s_hide"]) style=display:block;>' % (
                         i+1, i+1, i+1, i+1, i+1))
-                    print('<input type="button" id="%s_hide" value="Hide Remainder" onclick=toggle_visibility(["%s_extra","%s_dots","%s_show","%s_hide"]) style=display:none;>' % (
+                    print_replace('<input type="button" id="%s_hide" value="Hide Remainder" onclick=toggle_visibility(["%s_extra","%s_dots","%s_show","%s_hide"]) style=display:none;>' % (
                         i+1, i+1, i+1, i+1, i+1))
 
-                print('<br>')
-                print(HTML_preform)
-                print('<input type="hidden" name="verbpred" value="%s">' %
+                print_replace('<br>')
+                print_replace(HTML_preform)
+                print_replace('<input type="hidden" name="verbpred" value="%s">' %
                       sentences[i][0][1])
-                print('<input type="hidden" name="template" value="%s">' %
+                print_replace('<input type="hidden" name="template" value="%s">' %
                       sentences[i][0][3])
-                print('<input type="hidden" name="grammar" value="%s">' %
+                print_replace('<input type="hidden" name="grammar" value="%s">' %
                       grammar_dir)
-                print(
+                print_replace(
                     '<input type="submit" name="" value="More sentences with this verb and pattern">')
-                print(HTML_postform)
-            print('<br>')
-        print(HTML_sentencespostbody)
-        print(HTML_postbody)
+                print_replace(HTML_postform)
+            print_replace('<br>')
+        print_replace(HTML_sentencespostbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Display page with additional sentences
     def more_sentences_page(self, session_path, grammar_dir, verbpred, template_file, session):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>More Sentences</title>')
-        print(HTML_sentencesprebody)
+        global curr_doc
+        curr_doc = ""
+        print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>More Sentences</title>')
+        print_replace(HTML_sentencesprebody)
         delphin_dir = os.path.join(os.getcwd(), 'delphin')
         sentences, trees, mrss = generate.get_additional_sentences(grammar_dir,
                                                                    delphin_dir,
@@ -1537,68 +1552,75 @@ class MatrixDefFile:
                                                                    session)
         if len(sentences) > 0:
             if sentences[0] == "#EDGE-ERROR#":
-                print(
+                print_replace(
                     'This grammar combined with this input semantics results in too large of a seach space<br>')
             if sentences[0] == "#NO-SENTENCES#":
-                print(
+                print_replace(
                     'This combination of verb, pattern, and feature specification did not result in any generated sentences.<br>')
             else:
                 for j in range(len(sentences)):
                     # print str(j+1) + '. <span title="' + trees[j] + '">' + sentences[j] + "</span><br>"
-                    print(
+                    print_replace(
                         '<div onclick=toggle_visibility(["%s_parsemrs"])>%s. %s</div>' % (j+1, j+1, sentences[j]))
-                    print('<div id="%s_parsemrs" style=display:none;>' % (j+1))
-                    print('&nbsp&nbsp Parse tree:<br>' + trees[j])
-                    print('&nbsp&nbsp MRS:<br>' + mrss[j])
-                    print('</div>')
-        print('<br><input type="button" name="" value="Back to sentences" onclick="history.go(-1)">')
-        print(HTML_sentencespostbody)
-        print(HTML_postbody)
+                    print_replace('<div id="%s_parsemrs" style=display:none;>' % (j+1))
+                    print_replace('&nbsp&nbsp Parse tree:<br>' + trees[j])
+                    print_replace('&nbsp&nbsp MRS:<br>' + mrss[j])
+                    print_replace('</div>')
+        print_replace('<br><input type="button" name="" value="Back to sentences" onclick="history.go(-1)">')
+        print_replace(HTML_sentencespostbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Display errors and warnings that occurred during customization
     def error_page(self, vr):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Matrix Customization Errors</title>')
-        print(HTML_prebody)
+        global curr_doc
+        curr_doc = ""
+        print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Matrix Customization Errors</title>')
+        print_replace(HTML_prebody)
 
         if vr.has_errors():
-            print('<h2>Errors</h2>')
-            print('<dl>')
+            print_replace('<h2>Errors</h2>')
+            print_replace('<dl>')
             for k in vr.errors:
-                print('<dt><b>' + k + ':</b></dt>')
-                print('<dd>' + vr.errors[k].message + '</dd>')
-            print('</dl>')
+                print_replace('<dt><b>' + k + ':</b></dt>')
+                print_replace('<dd>' + vr.errors[k].message + '</dd>')
+            print_replace('</dl>')
 
         if vr.has_warnings():
-            print('<h2>Warnings</h2>')
-            print('<dl>')
+            print_replace('<h2>Warnings</h2>')
+            print_replace('<dl>')
             for k in vr.warnings:
-                print('<dt><b>' + k + ':</b></dt>')
-                print('<dd>' + vr.warnings[k].message + '</dd>')
-            print('</dl>')
+                print_replace('<dt><b>' + k + ':</b></dt>')
+                print_replace('<dd>' + vr.warnings[k].message + '</dd>')
+            print_replace('</dl>')
 
-        print(HTML_postbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Inform the user that cookies must be enabled
 
     def cookie_error_page(self):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Cookies Required</title>')
-        print(HTML_prebody)
+        global curr_doc
+        curr_doc = ""
+        print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Cookies Required</title>')
+        print_replace(HTML_prebody)
 
-        print('<div style="position:absolute; top:45%; width:100%">\n' +
+        print_replace('<div style="position:absolute; top:45%; width:100%">\n' +
               '<p style="color:red; text-align:center; font-size:16pt">' +
               'Cookies must be enabled for this site in your browser in order ' +
               'to fill out the questionnaire.</p>\n')
-        print('<p style="text-align:center; font-size:16pt">')
-        print('If cookies are enabled, try reloading an ')
-        print('<a href="matrix.cgi?choices=empty">empty questionnaire</a>. ')
-        print('Note that any existing changes will be lost.</p>')
-        print('</div>')
+        print_replace('<p style="text-align:center; font-size:16pt">')
+        print_replace('If cookies are enabled, try reloading an ')
+        print_replace('<a href="/matrix?choices=empty">empty questionnaire</a>. ')
+        print_replace('Note that any existing changes will be lost.</p>')
+        print_replace('</div>')
 
-        print(HTML_postbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
     # Based on a section of a matrix definition file in lines, save the
     # values from choices into the file handle f.  The section in lines
@@ -1654,10 +1676,10 @@ class MatrixDefFile:
     # values in form_data.  Use self.def_file to keep the choices file
     # in order.
 
-    def save_choices(self, form_data, choices_file):
+    def save_choices(self, form_data: Dict, choices_file):
         # The section isn't really a form field, but save it for later
         # section is page user is leaving (or clicking "save and stay" on)
-        section = form_data['section'].value
+        section = form_data['section']
 
         # New choices vs Old choices
         # old_choices is saved to pages other than "section" variable above
@@ -1673,10 +1695,10 @@ class MatrixDefFile:
                 # should ever have a value
                 if type(form_data[k]) == list:
                     for l in form_data[k]:
-                        if l.value:
-                            new_choices[k] = l.value
+                        if l:
+                            new_choices[k] = l
                 else:
-                    new_choices[k] = form_data[k].value
+                    new_choices[k] = form_data[k]
 
         # Read the current choices file (if any) into old_choices
         old_choices = ChoicesFile(choices_file)
@@ -1792,7 +1814,7 @@ class MatrixDefFile:
         if section == 'sentential-negation' \
                 and ('neg-aux' in list(form_data.keys())
                      or ('bineg-type' in list(form_data.keys())
-                         and form_data['bineg-type'].value == 'infl-head')):
+                         and form_data['bineg-type'] == 'infl-head')):
             # see if we're already storing an index number
             if 'neg-aux-index' in list(old_choices.keys()):
                 # we have an index for a neg-aux, see if it's still around
@@ -1810,9 +1832,9 @@ class MatrixDefFile:
 
         # create a zero-neg lri in choices
         if section == 'sentential-negation' and 'neg-exp' in form_data \
-                and form_data['neg-exp'].value == '0' \
+                and form_data['neg-exp'] == '0' \
                 and 'vpc-0-neg' in list(form_data.keys()):
-            if form_data['vpc-0-neg'].value != "":
+            if form_data['vpc-0-neg'] != "":
                 # infl-neg should be on for zero-neg to work
                 new_choices['infl-neg'] = 'on'
                 old_choices, new_choices = self.create_infl_neg_choices(
@@ -1823,8 +1845,8 @@ class MatrixDefFile:
         if section == 'sentential-negation':
             keys = list(form_data.keys())
             if 'neg1b-neg2b' in keys or \
-                    ('neg1-type' in keys and 'neg2-type' in keys and form_data['neg1-type'].value == 'fh' and form_data['neg2-type'].value == 'b') or \
-                    ('neg1-type' in keys and 'neg2-type' in keys and form_data['neg2-type'].value == 'fh' and form_data['neg1-type'].value == 'b'):
+                    ('neg1-type' in keys and 'neg2-type' in keys and form_data['neg1-type'] == 'fh' and form_data['neg2-type'] == 'b') or \
+                    ('neg1-type' in keys and 'neg2-type' in keys and form_data['neg2-type'] == 'fh' and form_data['neg1-type'] == 'b'):
                 try:
                     next_n = old_choices['form-subtype'].next_iter_num(
                     ) if 'form-subtype' in old_choices else 1
@@ -1895,7 +1917,7 @@ class MatrixDefFile:
         nli['stem1_pred'] = 'neg_rel'
 
         if 'bineg-type' in list(form_data.keys()) and \
-                form_data['bineg-type'].value == 'infl-head':
+                form_data['bineg-type'] == 'infl-head':
             nli['compfeature1_name'] = 'form'
             nli['compfeature1_value'] = 'negform'
 
@@ -1930,14 +1952,16 @@ class MatrixDefFile:
         return old_choices, new_choices
 
     def choices_error_page(self, choices_file, exc=None):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Invalid Choices File</title>')
-        print(HTML_posttitle % ('', '', '', ''))
-        print(HTML_toggle_visible_js)
-        print(HTML_prebody)
+        global curr_doc
+        curr_doc = ""
+        print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Invalid Choices File</title>')
+        print_replace(HTML_posttitle % ('', '', '', ''))
+        print_replace(HTML_toggle_visible_js)
+        print_replace(HTML_prebody)
 
-        print('<div style="position:absolute; top:15%; width:60%">\n' +
+        print_replace('<div style="position:absolute; top:15%; width:60%">\n' +
               '<p style="color:red; text-align:center; font-size:12pt">' +
               'The provided choices file is invalid. If you have edited the ' +
               'file by hand, please review the changes you made to make sure ' +
@@ -1946,26 +1970,29 @@ class MatrixDefFile:
               'developers. You may download the choices file to try and fix ' +
               'any errors.</p>\n')
 
-        print('<p style="text-align:center"><a href="' + choices_file + '">' +
+        print_replace('<p style="text-align:center"><a href="' + choices_file + '">' +
               'View Choices File</a> (right-click to download)</p>')
 
-        print('<p style="text-align:center">In most cases, you can go back ' +
+        print_replace('<p style="text-align:center">In most cases, you can go back ' +
               'in your browser and fix the problems, but if not you may ' +
-              '<a href="matrix.cgi?choices=empty">reload an empty ' +
+              '<a href="/matrix?choices=empty">reload an empty ' +
               'questionnaire</a> (this will erase your changes, so be sure to ' +
               'save your choices (above) first).')
         exception_html(exc)
-        print(HTML_postbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
     def customize_error_page(self, choices_file, exc=None):
-        print(HTTP_header + '\n')
-        print(HTML_pretitle)
-        print('<title>Problem Customizing Grammar</title>')
-        print(HTML_posttitle % ('', '', '', ''))
-        print(HTML_toggle_visible_js)
-        print(HTML_prebody)
+        global curr_doc
+        curr_doc = ""
+        print_replace(HTTP_header + '\n')
+        print_replace(HTML_pretitle)
+        print_replace('<title>Problem Customizing Grammar</title>')
+        print_replace(HTML_posttitle % ('', '', '', ''))
+        print_replace(HTML_toggle_visible_js)
+        print_replace(HTML_prebody)
 
-        print('<div style="position:absolute; top:15%; width:60%">\n' +
+        print_replace('<div style="position:absolute; top:15%; width:60%">\n' +
               '<p style="color:red; text-align:center; font-size:12pt">' +
               'The Grammar Matrix Customization System was unable to create ' +
               'a grammar with the provided choices file. You may go back in ' +
@@ -1973,24 +2000,28 @@ class MatrixDefFile:
               'there is a bug in the system you may email the choices file ' +
               'to the developers</p>\n')
 
-        print('<p style="text-align:center"><a href="' + choices_file + '">' +
+        print_replace('<p style="text-align:center"><a href="' + choices_file + '">' +
               'View Choices File</a> (right-click to download)</p>')
 
-        print('<p style="text-align:center">In most cases, you can go back ' +
+        print_replace('<p style="text-align:center">In most cases, you can go back ' +
               'in your browser and fix the problems, but if not you may ' +
-              '<a href="matrix.cgi?choices=empty">reload an empty ' +
+              '<a href="/matrix?choices=empty">reload an empty ' +
               'questionnaire</a> (this will erase your changes, so be sure to ' +
               'save your choices (above) first).')
         exception_html(exc)
-        print(HTML_postbody)
+        print_replace(HTML_postbody)
+        return curr_doc
 
 
 def exception_html(exc):
     if exc and exc != (None, None, None):
-        print('<p style="text-align:center">You may also wish to ' +
+        global curr_doc
+        curr_doc = ""
+        print_replace('<p style="text-align:center">You may also wish to ' +
               '<a href="#" onclick="toggle_visible(\'error\');">' +
               'see the Python error</a> ' +
               '(note: it is very technical, and possibly not useful).</p>')
-        print("<div id=\"error\" style=\"display:none\">")
+        print_replace("<div id=\"error\" style=\"display:none\">")
         cgitb.handler(exc)
-        print("</div>")
+        print_replace("</div>")
+        return curr_doc
