@@ -13,7 +13,6 @@
 # imports
 
 import os
-import cgitb
 import glob
 import re
 import tarfile
@@ -2022,6 +2021,6 @@ def exception_html(exc):
               'see the Python error</a> ' +
               '(note: it is very technical, and possibly not useful).</p>')
         print_replace("<div id=\"error\" style=\"display:none\">")
-        cgitb.handler(exc)
+        # cgitb.handler(exc)
         print_replace("</div>")
         return curr_doc
